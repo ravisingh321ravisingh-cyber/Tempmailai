@@ -1,40 +1,25 @@
-import os
 import telebot
-import requests
-import time
-import threading
+import os
+from flask import Flask
+from threading import Thread
 
-# Token hum Koyeb ki settings mein daalenge (Safe Method)
-TOKEN = os.getenv('BOT_TOKEN')
+TOKEN = os.environ.get("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "✅ Bot Live Hai!\nNaya email chahiye toh /generate likho.")
+    bot.reply_to(message, "Bot is running ✅")
 
-@bot.message_handler(commands=['generate'])
-def generate_email(message):
-    chat_id = message.chat.id
-    try:
-        # Testing ke liye 1secmail API
-        res = requests.get("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1").json()
-        email = res[0]
-        user, domain = email.split('@')
-        bot.send_message(chat_id, f"📧 Aapka Temp Email:\n`{email}`\n\nMain OTP check kar raha hoon (2 mins)...", parse_mode="Markdown")
+app = Flask(__name__)
 
-        def check_mail():
-            # 150 seconds tak check karega
-            for _ in range(15): 
-                time.sleep(10)
-                url = f"https://www.1secmail.com/api/v1/?action=getMessages&login={user}&domain={domain}"
-                msgs = requests.get(url).json()
-                if msgs:
-                    m_id = msgs[0]['id']
-                    c = requests.get(f"https://www.1secmail.com/api/v1/?action=readMessage&login={user}&domain={domain}&id={m_id}").json()
-                    bot.send_message(chat_id, f"📩 **Naya Mail Aaya!**\n\nSubject: {c['subject']}\n\n{c['textBody']}")
-                    break
-        threading.Thread(target=check_mail).start()
-    except Exception as e:
-        bot.send_message(chat_id, "Kuch gadbad ho gayi, fir se try karein.")
+@app.route('/')
+def home():
+    return "Bot is alive!"
 
-bot.polling()
+def run_bot():
+    bot.infinity_polling()
+
+if __name__ == "__main__":
+    Thread(target=run_bot).start()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
